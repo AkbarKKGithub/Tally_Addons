@@ -1,0 +1,254 @@
+;;=============================== Salesman Enablement ==========================================
+
+[#Part: CMP TallyShopFeatures Left]
+    Add : Line : At End : CMP EnableSalesmanTable
+
+[Line: CMP EnableSalesmanTable]
+    Field: Medium Prompt, CMP EnableSalesmanTable
+    Local: Field: Medium Prompt: Info: "Enable Salesman ? "
+    Local: Field: Long Prompt: Info: "Enable Broker wise Report?"
+    Space Top: 1
+
+[Field: CMP EnableSalesmanTable]
+    Use: Logical Field
+    Storage: EnableSalesman
+    Set as: If $$IsEmpty:$$Value then "No" else $$Value
+    Sub Form: SmReport: $$Value = "Yes"
+
+[System: UDF]
+    EnableSalesman : Logical : 1000
+
+;;============================== Salesman Menu =============================================
+
+[#Menu: Gateway Of Tally]
+    Add : Item : Salesman : Menu : SalesmanMenu
+
+[Menu: SalesmanMenu]
+    Add : Item : Salesman Master : Alter : Salesman Name
+    Add : Item : Blank
+    Add : Item : Salesman Report : Display : SmReport
+    Add : Item : Blank
+
+;;============================== Salesman Master ===========================================
+
+[Report: Salesman Name]
+    Form : Salesman Name
+    Object : Company
+
+[Form: Salesman Name]
+    Part : FormSubTitle, Saleman
+    FullWidth : No
+    Height : 90% Screen
+    Background : @@SV_CHEQUE
+    SpaceRight : 0.5
+    SpaceLeft : 1.5
+    Local : Field : Form SubTitle : Info : $$LocaleString:"Salesman Name"
+
+[Part: Saleman]
+    Lines : CMP Salesman
+    Repeat : CMP Salesman:mydbsalesman
+    Break on: $$IsEmpty:$SalesmanName
+    Scroll : Vertical
+    Height : 90% Screen
+
+[Line: CMP Salesman]
+    Fields : Multi SNo, CMPSalemanName
+    Local : Field : Default : Delete : Border
+
+[Field: CMPSalemanName]
+    Use : Short Name Field
+    Storage : SalesmanName
+    Unique : Yes
+
+[System: UDF]
+    mydbsalesman : Aggregate: 999
+    SalesmanName : String : 1000 ;: Yes
+
+[Collection : SalesmanNameCollection]
+    Type : mydbsalesman : Company
+    Childof : ##SVCurrentCompany
+    Format : $SalesmanName, 10
+    Title : Salesman Name
+
+;;=============== Add Salesman in Master Ledger Entry ==============
+[#Part : MST LED Details]
+    Add : Line : CMP EnableCST
+
+[Line : CMP EnableCST]
+    Field : Medium Prompt, CMP EnableCST
+    Local : Field : Medium Prompt : Set as : "Detail's of Sales Man"
+    Local : Field : Medium Prompt : Width : 22
+    Space Top : 1
+    Local : Field : Default : Inactive: NOT ($$IsBelongsTo:$$GroupSundryDebtors)
+
+[Field : CMP EnableCST]
+    Use : Short Name Field
+    Table : SalesmanNameCollection, Not Applicable
+    Show Table : Always
+    Storage : CMPSalesMan
+    FullWidth : Yes
+    Style : Normal
+    Inactive : NOT ($$IsBelongsTo:$$GroupSundryDebtors)
+
+[System : UDF]
+    CMPSalesMan : String : 21
+
+;;================= Salesman Report Code start from here ====================================
+TDLLic : $$CmpUserName:CompanyUsersCollection <>  admin 
+
+[Report: SmReport]
+    Use : DSP Template
+    Form : PQRReport
+    Title : "Salesman Report"
+    Set : SVFromDate : $$MonthStart:##SVCurrentDate
+    Set : SVToDate : $$MonthEnd:##SVCurrentDate
+    Set : SalesManChqVar : "Full"
+    Set : SalesManName : ""
+
+[Form: PQRReport]
+    Use : DSP Template
+    Parts : PQRReport
+    Height : 100% screen
+    Width : 100% screen
+    Delete : Buttons: ExplodeFlag
+    Background: @@SV_RELEASEDLEAFGREEN_PL; Very Light Green
+    Bottom Toolbar Buttons : BottomToolBarBtn1, BottomToolBarBtn6, BottomToolBarBtn7, BottomToolBarBtn8, BottomToolBarBtn9, BottomToolBarBtn10, BottomToolBarBtn11, BottomToolBarBtn12,
+    Add: Button: SalesmanFilter
+
+[Part: PQRReport]
+    Lines:pQRTitile,PQRBody
+    BottomLines : PQRBody Total
+    Repeat : PQRBody:SalesmanOutstandingColl
+    CommonBorder: Yes
+    Scroll : Vertical
+    Total:PQRPartyAmount
+
+[Line: PQRTitile]
+    Use:pQRBody
+    Local : Field : Default : Type : String
+    Local : Field : Default : Style : Tiny Bold
+    Local : Field : Default : Align : Centre
+    Local : Field : Default : set as : $$LocaleString:"S. No"
+    Local : Field : PQRPartyName : Set as: $$LocaleString:"Party Name"
+    Local : Field : PQRPartyPhone : Set as: $$LocaleString:"Phone Number"
+    Local : Field : PQRPartySalesMan: Set as: $$LocaleString:"SalesMan"
+    Local : Field : PQRPartyAmount : Set as: $$LocaleString:"Outstanding Amount"
+    Border : Flush Totals
+
+[Line: PQRBody]
+    Field:pQRSno, PQRPartyName, PQRPartyPhone, PQRPartySalesMan,PQRPartyAmount
+    Border :Thin Bottom
+
+[Field:pQRSno]
+    Set as : $$Line
+    Width : 1.5 cm
+    Align : Center
+    Border : Thin Left Right
+
+[Field: PQRPartyName]
+    Use : Name Field
+    Set as : $Name
+    Border : Thin Left
+    Width : 30% Screen
+    Align : Left
+    Variable: LedgerName
+    Display : Ledger Vouchers
+
+[Field: PQRPartyPhone]
+    Use : Name Field
+    Set as : $$String:$LedgerMobile
+    Border : Thin Left
+    Width : 15% Screen
+    Align : Left
+
+[Field: PQRPartySalesMan]
+    Use :Name Field
+    Set as :$CMPSalesMan
+    Border : Thin Left
+    Width : 12% Screen
+    Align : Left
+
+[Field: PQRPartyAmount]
+    Use : Amount Forex Field
+    Set as : $ClosingBalance
+    Border : Thin Left
+    Width : 10% Screen
+    Align : Right
+    Format : "No Zero,DrCr,Symbol," + ##ShowForex
+
+[Line: PQRBody Total]
+    Use:pQRBody
+    Local : Field : Default : Type : String
+    Local : Field : Default : Style : Tiny Bold
+    Local : Field : Default : Align : Centre
+    Local : Field : PQRSno : Set as: ""
+    Local : Field : PQRPartyName : Set as: "TOTAL"
+    Local : Field : PQRPartyName : Align : Centre
+    Local : Field : PQRPartyPhone : Set as: ""
+    Local : Field : PQRPartySalesMan: Set as: ""
+    Local : Field : PQRPartyAmount : Set as: $$Total:PQRPartyAmount
+    Border : Flush Totals
+
+;;============================== Filter ===================================
+[Button:SalesmanFilter]
+    Key : Alt+S
+    Action : Execute : SalesmanFilter
+    Title : Salesman Name
+
+[Report:SalesmanFilter]
+    Form : SalesmanFilter
+    Set : SalesManChqVar : "Filter"
+
+[Form:SalesmanFilter]
+    Part : SalesmanFilter
+    No Confirmation : Yes
+
+[Part:SalesmanFilter]
+    Line : SalesmanFilter
+
+[Line:SalesmanFilter]
+    Field : Medium Prompt,SalesmanFilter
+    Local : Field : Medium Prompt : Set as : "Select Salesman Name: "
+
+[Field:SalesmanFilter]
+    Table : SalesmanNameCollection,EndOfList
+    ShowTable : Always
+    Use : Name Field
+    Width : 20
+    Border : Thin Box
+    Variable : SalesmanName
+    Modifies : SalesmanName
+
+[System : Formula]
+    SalesManChqVar : String
+    SalesManName : String
+
+[Collection : SalesmanOutstandingColl]
+    Type: Ledger
+    Child Of: "Sundry Debtors"
+    Fetch: Name, LedPhone, ClosingBalance, CMPSalesMan
+    Filter: NonZeroClosingBalance
+    Filter : SalesManFilter
+
+[System:UDF]
+    EnableSalesman : Logical : 1000
+    Commission : Number : 1001
+
+[Variable:SalesManName]
+    Type : String
+
+[Variable:SalesManChqVar]
+    Type : String
+
+[System:Variable]
+    SalesManName : ""
+    SalesManChqVar : ""
+
+[System: Formula]
+    NonZeroClosingBalance: NOT $$IsEmpty:$ClosingBalance AND ($$IsDr:$ClosingBalance OR $$IsCr:$ClosingBalance)
+    SalesManWise : $CMPSalesMan=@@SAlesManEOL
+    SalesManFull : $CMPSalesMan=$CMPSalesMan
+    SAlesManEOL : if $$IsEndOfList:##SalesManName then $CMPSalesMan Else ##SalesManName
+    SalesManFilter : if ##SalesManChqVar="Filter" Then @@SalesManWise Else @@SalesManFull
+
+;;============================== End of Report ===========================================
